@@ -237,54 +237,119 @@ void loop() {
 
     case 6: {
         switch (menu) {
-          case 0: // password iniziale
-            stamp("psw iniziale", 0);
-            lcd.setCursor(16, 0);
-            lcd.print(byte(0));
+          case 0: { // password iniziale
+              stamp("psw iniziale", 0);
+              lcd.setCursor(16, 0);
+              lcd.print(byte(0));
 
-            if (initial_psw)
-              stamp("attivata", 1);
-            else
-              stamp("disattivata", 1);
+              if (initial_psw)
+                stamp("attivata", 1);
+              else
+                stamp("disattivata", 1);
 
-            lcd.setCursor(16, 1);
-            lcd.print(1);
+              lcd.setCursor(16, 1);
+              lcd.print(1);
+
+              char key = pad.getKey();
+
+              if (key != NO_KEY) {
+                if (key == "c")
+                  menu = 4;
+                else if (key == "d")
+                  menu++;
+
+              }
+            }
             break;
 
-          case 1: // password finale
-            stamp("psw finale", 0);
-            lcd.setCursor(16, 0);
-            lcd.print(byte(0));
+          case 1: { // password finale
+              stamp("psw finale", 0);
+              lcd.setCursor(16, 0);
+              lcd.print(byte(0));
 
-            if (final_psw)
-              stamp("attivata", 1);
-            else
-              stamp("disattivata", 1);
+              if (final_psw)
+                stamp("attivata", 1);
+              else
+                stamp("disattivata", 1);
 
-            lcd.setCursor(16, 1);
-            lcd.print(1);
+              lcd.setCursor(16, 1);
+              lcd.print(1);
+
+              char key = pad.getKey();
+
+              if (key != NO_KEY) {
+                if (key == "c")
+                  menu--;
+                else if (key == "d") {
+                  if (final_psw || initial_psw)
+                    menu++;
+                  else
+                    menu += 2;
+                }
+
+              }
+            }
             break;
 
-          case 2: // password (se iniziale o finale)
-            stamp("modifica psw", 0);
-            lcd.setCursor(16, 0);
-            lcd.print(byte(0));
+          case 2: { // password (se iniziale o finale)
+              stamp("modifica psw", 0);
+              lcd.setCursor(16, 0);
+              lcd.print(byte(0));
 
-            lcd.setCursor(16, 1);
-            lcd.print(1);
+              lcd.setCursor(16, 1);
+              lcd.print(1);
+
+              char key = pad.getKey();
+
+              if (key != NO_KEY) {
+                if (key == "c")
+                  menu--;
+                else if (key == "d")
+                  menu++;
+
+              }
+            }
             break;
 
-          case 3: //durata partita
-            lcd.setCursor(0, 0);
-            lcd.print("durata partita");
-            lcd.setCursor(16, 0);
-            lcd.print(byte(0));
+          case 3: { //durata partita
+              stamp("durata partita", 0);
+              lcd.setCursor(16, 0);
+              lcd.print(byte(0));
 
-            lcd.setCursor(16, 1);
-            lcd.print(1);
+              lcd.setCursor(16, 1);
+              lcd.print(1);
+
+              char key = pad.getKey();
+
+              if (key != NO_KEY) {
+                if (key == "c")
+                  menu--;
+                else if (key == "d")
+                  menu++;
+
+              }
+            }
             break;
 
-          case 4: // password super user
+          case 4: { // password super user
+              stamp("modifica psw", 0);
+              lcd.setCursor(16, 0);
+              lcd.print(byte(0));
+
+              stamp("amministratore", 1);
+              lcd.setCursor(16, 1);
+              lcd.print(1);
+
+              char key = pad.getKey();
+
+              if (key != NO_KEY) {
+                if (key == "c")
+                  menu--;
+                else if (key == "d")
+                  menu = 0;
+
+              }
+            }
             break;
         }
       }
@@ -295,16 +360,12 @@ void loop() {
 }
 
 bool psw_check(char* psw1, char* psw2, int dim) {
-  bool psw_corretta = true;
-
   for (int i = 0; i < dim; i++) {
     if (psw1[i] != psw2[i]) {
-      psw_corretta = false;
-      break;
+      return false;
     }
   }
-
-  return psw_corretta;
+  return true;
 }
 
 void psw_stamp(char *psw, int dim_psw, int final_psw_dim) {
