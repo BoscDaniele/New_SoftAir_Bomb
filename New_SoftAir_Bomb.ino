@@ -20,7 +20,7 @@ byte colPins[COLS] = {
   A4, A5, 13, 12
 };
 
-Keypad pad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+Keypad pad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 byte up[8] = {
   B00000,
@@ -42,8 +42,9 @@ byte down[8] = {
   B00000,
 };
 
+char count_down[7];
 unsigned long adesso;
-unsigned long max_time = 10000;
+unsigned long max_time;
 unsigned long last_time_press;
 
 int state;
@@ -51,10 +52,10 @@ int state;
 bool initial_psw;
 bool final_psw;
 
-char psw[5] = "1234";
+char psw[5];
 char usr_psw[5];
 
-char super_user_psw[5] = "1234";
+char super_user_psw[5];
 
 int index;
 
@@ -69,11 +70,20 @@ char new_psw[5];
 char new_super_user_psw[5];
 
 void setup() {
-  //  EEPROM.get(0, initial_psw);
-  //  EEPROM.get(1, final_psw);
+  EEPROM.get(0, initial_psw);
+  EEPROM.get(1, final_psw);
 
-  initial_psw = true;
-  final_psw = true;
+  EEPROM.get(2, psw); // occupa i Byte da 2 a 7
+  EEPROM.get(8, super_user_psw); // occupa i Byte da 8 a 13
+
+  EEPROM.get(14, count_down); // occupa i Byte da 14 a 21
+
+  int count_down_sup[6];
+
+  for (int i = 0; i < 6; i++)
+    count_down_sup[i] = count_down[i] - '0';
+
+  max_time = from_array_to_time(count_down_sup);
 
   pad.setHoldTime(500);
   pad.setDebounceTime(100);
@@ -155,7 +165,7 @@ void loop() {
       break;
 
     case 2: {
-        // Limite massimo di tempo impostabile 20 giorni, altrimenti questa variabile diventa negativa e il programma smette di funzionare
+        // Limite massimo di tempo impostabile circa 20 giorni
         long time_left = max_time - (millis() - adesso);
 
         if (time_left > 0) {
@@ -320,10 +330,10 @@ void loop() {
                   if (key == 'c')
                     menu--;
                   else if (key == 'd') {
-                    if (final_psw || initial_psw)
-                      menu++;
-                    else
-                      menu += 2;
+                    //if (final_psw || initial_psw)
+                    menu++;
+                    //else
+                    // menu += 2;
                   } else if (key == 'a')
                     change = !change;
                   else if (key == 'b')
@@ -356,10 +366,12 @@ void loop() {
 
           case 2: { // password (se iniziale o finale)
               if (!change) {
-                stamp("modifica psw", 0);
+                //stamp("modifica psw", 0);
+                stamp("psw  bomba", 0);
                 lcd.setCursor(16, 0);
                 lcd.print(byte(0));
 
+                stamp(psw, 1);
                 lcd.setCursor(16, 1);
                 lcd.print(1);
 
@@ -376,7 +388,7 @@ void loop() {
                     menu = 5;
                 }
               } else {
-                stamp("nuova psw", 0);
+                stamp("nuova  psw", 0);
                 lcd.setCursor(16, 0);
                 lcd.print(byte(0));
 
@@ -416,6 +428,7 @@ void loop() {
                 lcd.setCursor(16, 0);
                 lcd.print(byte(0));
 
+                time_stamp(new_max_time);
                 lcd.setCursor(16, 1);
                 lcd.print(1);
 
@@ -449,7 +462,7 @@ void loop() {
                   } else if (key == 'a' && index == 6) {
                     change = !change;
                     index = 0;
-                    from_array_to_time(new_max_time_sup);
+                    new_max_time = from_array_to_time(new_max_time_sup);
                   }
                   else if (key == 'c' && index > 0)
                     index--;
@@ -466,11 +479,13 @@ void loop() {
 
           case 4: { // password super user
               if (!change) {
-                stamp("modifica psw", 0);
+                //stamp("modifica psw", 0);
+                stamp("s_usr  psw", 0);
                 lcd.setCursor(16, 0);
                 lcd.print(byte(0));
 
-                stamp("amministratore", 1);
+                // stamp("amministratore", 1);
+                stamp(super_user_psw, 1);
                 lcd.setCursor(16, 1);
                 lcd.print(1);
 
@@ -487,12 +502,12 @@ void loop() {
                     menu = 5;
                 }
               } else {
-                stamp("nuova psw", 0);
+                stamp("nuova  psw", 0);
                 lcd.setCursor(16, 0);
                 lcd.print(byte(0));
 
                 psw_stamp(new_super_user_psw, index, (sizeof(super_user_psw) / sizeof(char)) - 1);
-                lcd.setCursor(16, 0);
+                lcd.setCursor(16, 1 );
                 lcd.print(1);
 
                 char key = pad.getKey();
@@ -527,7 +542,7 @@ void loop() {
               lcd.print(byte(0));
 
               stamp("A: Si  B: No", 1);
-              lcd.setCursor(16, 0);
+              lcd.setCursor(16, 1);
               lcd.print(1);
 
               char key = pad.getKey();
@@ -545,6 +560,30 @@ void loop() {
                   for (int i = 0; i < (sizeof(new_super_user_psw) / sizeof(char)) - 1; i++) {
                     super_user_psw[i] = new_super_user_psw[i];
                   }
+
+                  EEPROM.update(0, new_initial_psw);
+                  EEPROM.update(1, new_final_psw);
+
+                  for (int i = 0; i < 4; i++)
+                    EEPROM.update(2 + i, new_psw[i]);
+
+                  for (int i = 0; i < 4; i++)
+                    EEPROM.update(8 + i, new_super_user_psw[i]);
+
+                  for (int i = 0; i < 6; i++)
+                    EEPROM.update(14 + i * sizeof(char), (char)(new_max_time_sup[i] + '0'));
+
+                  lcd.clear();
+
+                  stamp("impostazioni", 0);
+                  lcd.setCursor(16, 0);
+                  lcd.print(byte(0));
+
+                  stamp("salvate!", 1);
+                  lcd.setCursor(16, 1);
+                  lcd.print(1);
+
+                  delay(1000);
 
                   menu = 0;
                   res();
@@ -615,15 +654,17 @@ void new_time_stamp(int* new_time, int index) {
   }
 }
 
-void from_array_to_time(int* new_time) {
-  new_max_time = 0;
+unsigned long from_array_to_time(int* new_time) {
+  unsigned long count = 0;
 
-  new_max_time += (unsigned long)new_time[0] * 10 * 60 * 1000;
-  new_max_time += (unsigned long)new_time[1] * 60 * 1000;
-  new_max_time += (unsigned long)new_time[2] * 10 * 1000;
-  new_max_time += (unsigned long)new_time[3] * 1000;
-  new_max_time += (unsigned long)new_time[4] * 100;
-  new_max_time += (unsigned long)new_time[4] * 10;
+  count += (unsigned long)new_time[0] * 10 * 60 * 1000;
+  count += (unsigned long)new_time[1] * 60 * 1000;
+  count += (unsigned long)new_time[2] * 10 * 1000;
+  count += (unsigned long)new_time[3] * 1000;
+  count += (unsigned long)new_time[4] * 100;
+  count += (unsigned long)new_time[5] * 10;
+
+  return count;
 }
 
 void time_stamp(long time_left) {
