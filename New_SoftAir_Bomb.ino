@@ -51,30 +51,52 @@ int state;
 bool initial_psw;
 bool final_psw;
 
-static char psw[5] = "1234";
+char psw[5] = "1234";
 char usr_psw[5];
 
-static char super_user_psw[5] = "1234";
+char super_user_psw[5] = "1234";
 
 int index;
 
 int menu;
+bool change;
+
+bool new_initial_psw;
+bool new_final_psw;
+unsigned long new_max_time;
+int new_max_time_sup[7];
+char new_psw[5];
+char new_super_user_psw[5];
 
 void setup() {
-  EEPROM.get(0, initial_psw);
-  EEPROM.get(1, final_psw);
+  //  EEPROM.get(0, initial_psw);
+  //  EEPROM.get(1, final_psw);
+
+  initial_psw = true;
+  final_psw = true;
 
   pad.setHoldTime(500);
   pad.setDebounceTime(100);
   pad.addEventListener(keypadEvent);
 
-  last_time_press = max_time;
+  last_time_press = 5000;
   menu = 0;
+  change = false;
   res();
   lcd.begin(16, 2);
 
   lcd.createChar(0, up);
   lcd.createChar(1, down);
+
+  new_initial_psw = initial_psw;
+  new_final_psw = final_psw;
+  new_max_time = max_time;
+
+  for (int i = 0; i < (sizeof(psw) / sizeof(char)) - 1; i++)
+    new_psw[i] = psw[i];
+
+  for (int i = 0; i < (sizeof(super_user_psw) / sizeof(char)) - 1; i++)
+    new_super_user_psw[i] = super_user_psw[i];
 }
 
 void loop() {
@@ -83,7 +105,7 @@ void loop() {
   switch (state) {
     case 0:
       if (initial_psw) {
-        stamp("Inserisci  Psw", 0);
+        stamp("Inserire  Psw", 0);
         stamp("per Armare", 1);
 
         if (pad.getKey() == 'a')
@@ -101,14 +123,15 @@ void loop() {
       break;
 
     case 1: {
-        stamp("Inserisci  Psw", 0);
+        stamp("Inserire  Psw", 0);
+        psw_stamp(usr_psw, index, (sizeof(psw) / sizeof(char)) - 1);
 
         char key = pad.getKey();
 
         if (key != NO_KEY) {
           if (key == 'c') {
             index--;
-          } else {
+          } else if (key == '0' || key == '1' || key == '2' || key == '3' || key == '4' || key == '5' || key == '6' || key == '7' || key == '8' || key == '9') {
             usr_psw[index] = key;
             index++;
           }
@@ -127,11 +150,6 @@ void loop() {
 
             delay(1000);
           }
-        } else {
-          for (int i = 0; i < index; i++) {
-            lcd.setCursor(6 + i, 1);
-            lcd.print(usr_psw[i]);
-          }
         }
       }
       break;
@@ -146,11 +164,7 @@ void loop() {
             time_stamp(time_left);
           } else {
             stamp("Inserisci  Psw", 0);
-
-            for (int i = 0; i < index; i++) {
-              lcd.setCursor(6 + i, 1);
-              lcd.print(usr_psw[i]);
-            }
+            psw_stamp(usr_psw, index, (sizeof(psw) / sizeof(char)) - 1);
           }
 
           char key = pad.getKey();
@@ -167,8 +181,6 @@ void loop() {
                 }
               } else if (key == 'a') {
                 if (index == (sizeof(psw) / sizeof(char)) - 1) {
-                  res();
-
                   if (psw_check(psw, usr_psw, index)) {
                     lcd.clear();
                     stamp("Disinnescata", 0);
@@ -178,6 +190,7 @@ void loop() {
                     stamp("BOOOOM", 0);
                     delay(2000);
                   }
+                  res();
                 }
               }
             }
@@ -216,7 +229,7 @@ void loop() {
             }
           } else if (key == 'a') {
             if (index == (sizeof(super_user_psw) / sizeof(char)) - 1) {
-              if (psw_check(psw, usr_psw, index)) {
+              if (psw_check(super_user_psw, usr_psw, index)) {
                 lcd.clear();
                 state = 6;
                 stamp("Psw Accettata!", 0);
@@ -230,7 +243,8 @@ void loop() {
 
               index = 0;
             }
-          }
+          } else if (key == 'b')
+            res();
         }
       }
       break;
@@ -238,116 +252,310 @@ void loop() {
     case 6: {
         switch (menu) {
           case 0: { // password iniziale
-              stamp("psw iniziale", 0);
-              lcd.setCursor(16, 0);
-              lcd.print(byte(0));
+              if (!change) {
+                stamp("psw iniziale", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
-              if (initial_psw)
-                stamp("attivata", 1);
-              else
-                stamp("disattivata", 1);
+                if (new_initial_psw)
+                  stamp("attivata", 1);
+                else
+                  stamp("disattivata", 1);
 
-              lcd.setCursor(16, 1);
-              lcd.print(1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
 
-              char key = pad.getKey();
+                char key = pad.getKey();
+                if (key != NO_KEY) {
+                  if (key == 'c')
+                    menu = 4;
+                  else if (key == 'd')
+                    menu++;
+                  else if (key == 'a')
+                    change = !change;
+                  else if (key == 'b')
+                    menu = 5;
+                }
+              } else {
+                if (new_initial_psw)
+                  stamp("disattivare?", 0);
+                else
+                  stamp("attivare?", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
-              if (key != NO_KEY) {
-                if (key == "c")
-                  menu = 4;
-                else if (key == "d")
-                  menu++;
+                stamp("A: Si  B: No", 1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
 
+                char key = pad.getKey();
+                if (key != NO_KEY) {
+                  if (key == 'a') {
+                    new_initial_psw = !new_initial_psw;
+                    change = !change;
+                  } else if (key == 'b')
+                    change = !change;
+                }
               }
             }
             break;
 
           case 1: { // password finale
-              stamp("psw finale", 0);
-              lcd.setCursor(16, 0);
-              lcd.print(byte(0));
+              if (!change) {
+                stamp("psw finale", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
-              if (final_psw)
-                stamp("attivata", 1);
-              else
-                stamp("disattivata", 1);
+                if (new_final_psw)
+                  stamp("attivata", 1);
+                else
+                  stamp("disattivata", 1);
 
-              lcd.setCursor(16, 1);
-              lcd.print(1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
 
-              char key = pad.getKey();
+                char key = pad.getKey();
 
-              if (key != NO_KEY) {
-                if (key == "c")
-                  menu--;
-                else if (key == "d") {
-                  if (final_psw || initial_psw)
-                    menu++;
-                  else
-                    menu += 2;
+                if (key != NO_KEY) {
+                  if (key == 'c')
+                    menu--;
+                  else if (key == 'd') {
+                    if (final_psw || initial_psw)
+                      menu++;
+                    else
+                      menu += 2;
+                  } else if (key == 'a')
+                    change = !change;
+                  else if (key == 'b')
+                    menu = 5;
                 }
+              } else {
+                if (new_final_psw)
+                  stamp("disattivare?", 0);
+                else
+                  stamp("attivare?", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
+                stamp("A: Si  B: No", 1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
+
+                char key = pad.getKey();
+                if (key != NO_KEY) {
+                  if (key == 'a') {
+                    new_final_psw = !new_final_psw;
+                    change = !change;
+                    lcd.clear();
+                  } else if (key == 'b')
+                    change = !change;
+                }
               }
             }
             break;
 
           case 2: { // password (se iniziale o finale)
-              stamp("modifica psw", 0);
-              lcd.setCursor(16, 0);
-              lcd.print(byte(0));
+              if (!change) {
+                stamp("modifica psw", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
-              lcd.setCursor(16, 1);
-              lcd.print(1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
 
-              char key = pad.getKey();
+                char key = pad.getKey();
 
-              if (key != NO_KEY) {
-                if (key == "c")
-                  menu--;
-                else if (key == "d")
-                  menu++;
+                if (key != NO_KEY) {
+                  if (key == 'a')
+                    change = !change;
+                  else if (key == 'c')
+                    menu--;
+                  else if (key == 'd')
+                    menu++;
+                  else if (key == 'b')
+                    menu = 5;
+                }
+              } else {
+                stamp("nuova psw", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
+                psw_stamp(new_psw, index, (sizeof(psw) / sizeof(char)) - 1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
+
+                char key = pad.getKey();
+
+                if (key != NO_KEY) {
+                  if (key == 'b') {
+                    change = !change;
+                    index = 0;
+                    for (int i = 0; i < (sizeof(psw) / sizeof(char)) - 1; i++) {
+                      new_psw[i] = psw[i];
+                    }
+                  } else if (key == 'a' && index == (sizeof(psw) / sizeof(char)) - 1) {
+                    change = !change;
+                    index = 0;
+                  }
+                  else if (key == 'c' && index > 0)
+                    index--;
+                  else if (key == '0' || key == '1' || key == '2' || key == '3' || key == '4' || key == '5' || key == '6' || key == '7' || key == '8' || key == '9') {
+                    if (index < (sizeof(psw) / sizeof(char)) - 1) {
+                      new_psw[index] = key;
+                      index++;
+                    }
+                  }
+                }
               }
             }
             break;
 
           case 3: { //durata partita
-              stamp("durata partita", 0);
-              lcd.setCursor(16, 0);
-              lcd.print(byte(0));
+              if (!change) {
+                stamp("durata partita", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
-              lcd.setCursor(16, 1);
-              lcd.print(1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
 
-              char key = pad.getKey();
+                char key = pad.getKey();
 
-              if (key != NO_KEY) {
-                if (key == "c")
-                  menu--;
-                else if (key == "d")
-                  menu++;
+                if (key != NO_KEY) {
+                  if (key == 'a')
+                    change = !change;
+                  else if (key == 'c')
+                    menu--;
+                  else if (key == 'd')
+                    menu++;
+                  else if (key == 'b')
+                    menu = 5;
+                }
+              } else {
+                stamp("nuova durata", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
 
+                new_time_stamp(new_max_time_sup, index);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
+
+                char key = pad.getKey();
+
+                if (key != NO_KEY) {
+                  if (key == 'b') {
+                    change = !change;
+                    index = 0;
+                  } else if (key == 'a' && index == 6) {
+                    change = !change;
+                    index = 0;
+                    from_array_to_time(new_max_time_sup);
+                  }
+                  else if (key == 'c' && index > 0)
+                    index--;
+                  else if (key == '0' || key == '1' || key == '2' || key == '3' || key == '4' || key == '5' || key == '6' || key == '7' || key == '8' || key == '9') {
+                    if (index < 6) {
+                      new_max_time_sup[index] = key - '0';
+                      index++;
+                    }
+                  }
+                }
               }
             }
             break;
 
           case 4: { // password super user
-              stamp("modifica psw", 0);
+              if (!change) {
+                stamp("modifica psw", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
+
+                stamp("amministratore", 1);
+                lcd.setCursor(16, 1);
+                lcd.print(1);
+
+                char key = pad.getKey();
+
+                if (key != NO_KEY) {
+                  if (key == 'a')
+                    change = !change;
+                  else if (key == 'c')
+                    menu--;
+                  else if (key == 'd')
+                    menu = 0;
+                  else if (key == 'b')
+                    menu = 5;
+                }
+              } else {
+                stamp("nuova psw", 0);
+                lcd.setCursor(16, 0);
+                lcd.print(byte(0));
+
+                psw_stamp(new_super_user_psw, index, (sizeof(super_user_psw) / sizeof(char)) - 1);
+                lcd.setCursor(16, 0);
+                lcd.print(1);
+
+                char key = pad.getKey();
+
+                if (key != NO_KEY) {
+                  if (key == 'b') {
+                    change = !change;
+                    index = 0;
+                    for (int i = 0; i < (sizeof(super_user_psw) / sizeof(char)) - 1; i++) {
+                      new_super_user_psw[i] = super_user_psw[i];
+                    }
+                  } else if (key == 'a' && index == (sizeof(super_user_psw) / sizeof(char)) - 1) {
+                    change = !change;
+                    index = 0;
+                  }
+                  else if (key == 'c' && index > 0)
+                    index--;
+                  else if (key == '0' || key == '1' || key == '2' || key == '3' || key == '4' || key == '5' || key == '6' || key == '7' || key == '8' || key == '9') {
+                    if (index < (sizeof(super_user_psw) / sizeof(char)) - 1) {
+                      new_super_user_psw[index] = key;
+                      index++;
+                    }
+                  }
+                }
+              }
+            }
+            break;
+
+          case 5: {
+              stamp("salvare?", 0);
               lcd.setCursor(16, 0);
               lcd.print(byte(0));
 
-              stamp("amministratore", 1);
-              lcd.setCursor(16, 1);
+              stamp("A: Si  B: No", 1);
+              lcd.setCursor(16, 0);
               lcd.print(1);
 
               char key = pad.getKey();
 
               if (key != NO_KEY) {
-                if (key == "c")
-                  menu--;
-                else if (key == "d")
-                  menu = 0;
+                if (key == 'a') {
+                  initial_psw = new_initial_psw;
+                  final_psw = new_final_psw;
+                  max_time = new_max_time;
 
+                  for (int i = 0; i < (sizeof(new_psw) / sizeof(char)) - 1; i++) {
+                    psw[i] = new_psw[i];
+                  }
+
+                  for (int i = 0; i < (sizeof(new_super_user_psw) / sizeof(char)) - 1; i++) {
+                    super_user_psw[i] = new_super_user_psw[i];
+                  }
+
+                  menu = 0;
+                  res();
+                } else if (key == 'b') {
+                  new_initial_psw = initial_psw;
+                  new_final_psw = final_psw;
+                  new_max_time = max_time;
+
+                  menu = 0;
+                  res();
+                }
               }
             }
             break;
@@ -388,6 +596,34 @@ void stamp(String str, int row) {
   lcd.setCursor(8 - (len / 2), row);
 
   lcd.print(str);
+}
+
+void new_time_stamp(int* new_time, int index) {
+  lcd.setCursor(4, 1);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 2; j++) {
+      if (index > (i * 2 + j)) {
+        lcd.print(new_time[i * 2 + j]);
+      } else {
+        lcd.print("_");
+      }
+    }
+
+    if (i != 2) {
+      lcd.print(":");
+    }
+  }
+}
+
+void from_array_to_time(int* new_time) {
+  new_max_time = 0;
+
+  new_max_time += (unsigned long)new_time[0] * 10 * 60 * 1000;
+  new_max_time += (unsigned long)new_time[1] * 60 * 1000;
+  new_max_time += (unsigned long)new_time[2] * 10 * 1000;
+  new_max_time += (unsigned long)new_time[3] * 1000;
+  new_max_time += (unsigned long)new_time[4] * 100;
+  new_max_time += (unsigned long)new_time[4] * 10;
 }
 
 void time_stamp(long time_left) {
