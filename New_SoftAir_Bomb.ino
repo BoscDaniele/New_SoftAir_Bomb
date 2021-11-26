@@ -459,6 +459,9 @@ void loop() {
                   if (key == 'b') {
                     change = !change;
                     index = 0;
+                    for (int i = 0; i < 6; i++) {
+                      new_max_time_sup[i] = count_down[i] - '0';
+                    }
                   } else if (key == 'a' && index == 6) {
                     change = !change;
                     index = 0;
