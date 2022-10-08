@@ -3,6 +3,12 @@
 #include <LiquidCrystal.h>
 #include <EEPROM.h>
 
+const int Timer_Tone = 10; //10
+bool timer1;
+bool timer2;
+
+const int Keypad_Tone = 8;
+
 LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
 
 const byte ROWS = 4;
@@ -42,7 +48,7 @@ byte down[8] = {
   B00000,
 };
 
-char count_down[7];
+char count_down[7] = "001000";
 unsigned long adesso;
 unsigned long max_time;
 unsigned long last_time_press;
@@ -52,10 +58,10 @@ int state;
 bool initial_psw;
 bool final_psw;
 
-char psw[5];
+char psw[5] = "0000";
 char usr_psw[5];
 
-char super_user_psw[5];
+char super_user_psw[5] = "0000";
 
 int index;
 
@@ -67,9 +73,17 @@ bool new_final_psw;
 unsigned long new_max_time;
 int new_max_time_sup[7];
 char new_psw[5];
+char new_psw_sup[5];
 char new_super_user_psw[5];
+char new_super_user_psw_sup[5];
+
 
 void setup() {
+  pinMode(Timer_Tone, OUTPUT);
+  timer1 = false;
+  timer2 = false;
+  pinMode(Keypad_Tone, OUTPUT);
+
   EEPROM.get(0, initial_psw);
   EEPROM.get(1, final_psw);
 
@@ -102,11 +116,15 @@ void setup() {
   new_final_psw = final_psw;
   new_max_time = max_time;
 
-  for (int i = 0; i < (sizeof(psw) / sizeof(char)) - 1; i++)
+  for (int i = 0; i < (sizeof(psw) / sizeof(char)) - 1; i++) {
     new_psw[i] = psw[i];
+    new_psw_sup[i] = psw[i];
+  }
 
-  for (int i = 0; i < (sizeof(super_user_psw) / sizeof(char)) - 1; i++)
+  for (int i = 0; i < (sizeof(super_user_psw) / sizeof(char)) - 1; i++) {
     new_super_user_psw[i] = super_user_psw[i];
+    new_super_user_psw_sup[i] = super_user_psw[i];
+  }
 }
 
 void loop() {
@@ -169,6 +187,15 @@ void loop() {
         long time_left = max_time - (millis() - adesso);
 
         if (time_left > 0) {
+          timer1 = !timer1; //t,f,t,f,t
+          timer2 = timer1 ? !timer2 : timer2; //t,t,f,f,t
+          if (timer2 && timer1 && time_left > 10001 ) { //t,f,f,f,t
+            tone(Timer_Tone, 1100, 100);
+          } else if (time_left < 10000 && time_left > 5001  && timer1)
+            tone(Timer_Tone, 1104, 50);
+          else if (time_left < 5000)
+            tone(Timer_Tone, 1106, 25);
+
           if (!final_psw || (millis() - last_time_press) > 2000) {
             stamp("Tempo  Rimasto", 0);
             time_stamp(time_left);
@@ -198,6 +225,7 @@ void loop() {
                   } else {
                     lcd.clear();
                     stamp("BOOOOM", 0);
+                    tone(Timer_Tone, 1110, 1500);
                     delay(2000);
                   }
                   res();
@@ -218,6 +246,7 @@ void loop() {
 
           lcd.clear();
           stamp("BOOOOM", 0);
+          tone(Timer_Tone, 1110, 1500);
           delay(2000);
         }
       }
@@ -371,7 +400,7 @@ void loop() {
                 lcd.setCursor(16, 0);
                 lcd.print(byte(0));
 
-                stamp(psw, 1);
+                stamp(new_psw, 1);
                 lcd.setCursor(16, 1);
                 lcd.print(1);
 
@@ -403,11 +432,14 @@ void loop() {
                     change = !change;
                     index = 0;
                     for (int i = 0; i < (sizeof(psw) / sizeof(char)) - 1; i++) {
-                      new_psw[i] = psw[i];
+                      new_psw[i] = new_psw_sup[i];
                     }
                   } else if (key == 'a' && index == (sizeof(psw) / sizeof(char)) - 1) {
                     change = !change;
                     index = 0;
+                    for (int i = 0; i < (sizeof(psw) / sizeof(char)) - 1; i++) {
+                      new_psw_sup[i] = new_psw[i];
+                    }
                   }
                   else if (key == 'c' && index > 0)
                     index--;
@@ -488,7 +520,7 @@ void loop() {
                 lcd.print(byte(0));
 
                 // stamp("amministratore", 1);
-                stamp(super_user_psw, 1);
+                stamp(new_super_user_psw, 1);
                 lcd.setCursor(16, 1);
                 lcd.print(1);
 
@@ -520,11 +552,14 @@ void loop() {
                     change = !change;
                     index = 0;
                     for (int i = 0; i < (sizeof(super_user_psw) / sizeof(char)) - 1; i++) {
-                      new_super_user_psw[i] = super_user_psw[i];
+                      new_super_user_psw[i] = new_super_user_psw_sup[i];
                     }
                   } else if (key == 'a' && index == (sizeof(super_user_psw) / sizeof(char)) - 1) {
                     change = !change;
                     index = 0;
+                    for (int i = 0; i < (sizeof(super_user_psw) / sizeof(char)) - 1; i++) {
+                      new_super_user_psw_sup[i] = new_super_user_psw[i];
+                    }
                   }
                   else if (key == 'c' && index > 0)
                     index--;
@@ -595,6 +630,16 @@ void loop() {
                   new_final_psw = final_psw;
                   new_max_time = max_time;
 
+                  for (int i = 0; i < (sizeof(new_psw) / sizeof(char)) - 1; i++) {
+                    new_psw[i] = psw[i];
+                    new_psw_sup[i] = psw[i];
+                  }
+
+                  for (int i = 0; i < (sizeof(new_super_user_psw) / sizeof(char)) - 1; i++) {
+                    new_super_user_psw_sup[i] = super_user_psw[i];
+                    new_super_user_psw[i] = super_user_psw[i];
+                  }
+
                   menu = 0;
                   res();
                 }
@@ -606,7 +651,7 @@ void loop() {
       break;
   }
 
-  delay(50);
+  delay(100);
 }
 
 bool psw_check(char* psw1, char* psw2, int dim) {
@@ -704,6 +749,9 @@ void time_stamp(long time_left) {
 }
 
 void keypadEvent(KeypadEvent key) {
+  if (pad.getState() == PRESSED)
+    tone(Keypad_Tone, 825, 50);
+
   if (pad.getState() == HOLD && state == 0) {
     if (key == '#') {
       state = 5;
